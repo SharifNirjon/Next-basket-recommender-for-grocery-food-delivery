@@ -1,0 +1,59 @@
+# Central configuration. Paths are relative to the repo root.
+# `--sample` redirects processed/artifacts/reports to a `sample/` subfolder.
+seed: 42
+
+paths:
+  raw_dir: data/raw
+  processed_dir: data/processed
+  artifacts_dir: artifacts
+  reports_dir: reports
+  mlruns_dir: mlruns
+
+data:
+  kaggle_competition: instacart-market-basket-analysis
+  kaggle_dataset: psparks/instacart-market-basket-analysis
+  sample_frac: 0.10
+  split: {train: 0.70, valid: 0.15, test: 0.15}
+
+candidates:
+  max_candidates: 100        # hard cap per user after merging all sources
+  history_decay: 0.9         # weight = decay ** orders_back (0 = most recent order)
+  n_item2vec: 40             # FAISS neighbours of the user embedding
+  n_top_aisles: 3
+  n_per_aisle: 10
+  n_global: 20
+  item2vec:
+    vector_size: 64
+    window: 20               # baskets are sets: wide window ~ whole basket
+    min_count: 5
+    epochs: 5
+    sg: 1
+    negative: 5
+    sample: 0.0001
+
+features:
+  n_user_chunks: 8           # process users in chunks to bound memory
+
+ranker:
+  params:
+    objective: lambdarank
+    learning_rate: 0.05
+    num_leaves: 63
+    min_child_samples: 100
+    feature_fraction: 0.8
+    bagging_fraction: 0.8
+    bagging_freq: 1
+    lambda_l2: 1.0
+    lambdarank_truncation_level: 20
+    n_jobs: -1
+    verbose: -1
+  n_estimators: 2000
+  early_stopping_rounds: 50
+  eval_at: 10
+
+evaluation:
+  ks: [10, 20]
+
+serve:
+  default_k: 10
+  max_k: 100
