@@ -30,6 +30,7 @@ candidates:
     sg: 1
     negative: 5
     sample: 0.0001
+    workers: 4               # >1 is faster but not bit-for-bit reproducible
 
 features:
   n_user_chunks: 8           # process users in chunks to bound memory

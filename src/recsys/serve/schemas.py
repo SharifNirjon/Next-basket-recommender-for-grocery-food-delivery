@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class RecommendedItem(BaseModel):
@@ -23,6 +23,8 @@ class Context(BaseModel):
 
 
 class RecommendResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     user_id: int
     k: int
     fallback: bool = Field(description="True when the user is unknown -> popularity list")
@@ -56,6 +58,8 @@ class HealthResponse(BaseModel):
 
 
 class MetadataResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     model_version: str
     trained_at: str
     best_iteration: int

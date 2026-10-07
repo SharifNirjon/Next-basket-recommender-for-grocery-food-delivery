@@ -124,9 +124,8 @@ def to_markdown(m: dict[str, Any], ks: list[int]) -> str:
     )
 
 
-def main() -> None:
-    configure_logging()
-    cfg, _ = cli_config("Evaluate baselines and the two-stage model on test users")
+def run_evaluation(cfg: Config) -> dict[str, Any]:
+    """Evaluate on test users, write reports/metrics.json + results.md, log to MLflow."""
     m = evaluate(cfg, "test")
     reports = cfg.paths.reports_dir
     (reports / "metrics.json").write_text(json.dumps(m, indent=2))
@@ -147,6 +146,13 @@ def main() -> None:
             "test metrics", system=system, **{k: round(v, 4) for k, v in res.items() if "@" in k}
         )
     log.info("retrieval", **{k: round(v, 4) for k, v in m["retrieval"].items()})
+    return m
+
+
+def main() -> None:
+    configure_logging()
+    cfg, _ = cli_config("Evaluate baselines and the two-stage model on test users")
+    run_evaluation(cfg)
 
 
 if __name__ == "__main__":

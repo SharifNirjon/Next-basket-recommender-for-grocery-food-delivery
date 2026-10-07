@@ -7,6 +7,7 @@ orders are used, so the target ("train") orders never influence the embeddings.
 from __future__ import annotations
 
 import logging
+import zlib
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -86,6 +87,11 @@ class ItemIndex:
         return users, uv
 
 
+def stable_hash(s: str) -> int:
+    """Process-independent hash for gensim's vector init (Python's hash() is salted)."""
+    return zlib.crc32(s.encode())
+
+
 def write_corpus(prior: pd.DataFrame, path: Path) -> int:
     """One line per prior order: space-separated product ids in add-to-cart order."""
     p = prior.sort_values(["order_id", "add_to_cart_order"])
@@ -119,8 +125,9 @@ def train_item2vec(cfg: Config) -> ItemIndex:
             negative=params["negative"],
             sample=params["sample"],
             epochs=params["epochs"],
-            workers=4,
+            workers=params["workers"],
             seed=cfg.seed,
+            hashfxn=stable_hash,
         )
     corpus.unlink()
     ids = np.array([int(k) for k in model.wv.index_to_key], dtype="int32")

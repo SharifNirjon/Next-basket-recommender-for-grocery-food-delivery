@@ -1,0 +1,12 @@
+services:
+  api:
+    build: .
+    image: next-basket-recommender:latest
+    ports:
+      - "8000:8000"
+    environment:
+      ARTIFACTS_DIR: /app/artifacts
+    volumes:
+      # Built by `make all` (or `make all SAMPLE=1` + ARTIFACTS_PATH=./artifacts/sample)
+      - ${ARTIFACTS_PATH:-./artifacts}:/app/artifacts:ro
+    restart: unless-stopped
