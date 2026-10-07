@@ -1,0 +1,10 @@
+# Runtime dependencies of the API container only (pinned).
+numpy==1.26.4
+scipy==1.13.1
+lightgbm==4.5.0
+faiss-cpu==1.9.0
+fastapi==0.115.4
+uvicorn==0.32.0
+pydantic==2.9.2
+structlog==24.4.0
+PyYAML==6.0.2
