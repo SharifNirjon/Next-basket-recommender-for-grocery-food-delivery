@@ -1,0 +1,15 @@
+{
+  "requests": 1000,
+  "errors": 0,
+  "fallback_responses": 0,
+  "k": 10,
+  "p50_ms": 5.69,
+  "p95_ms": 7.49,
+  "p99_ms": 9.85,
+  "mean_ms": 5.89,
+  "max_ms": 19.57,
+  "model_version": "lgbm-lambdarank-abe0bcb6",
+  "n_users_in_artifacts": 206209,
+  "target": "http://localhost:8000",
+  "client_host": "Linux x86_64 py3.11.17"
+}

@@ -16,7 +16,12 @@ import pandas as pd
 from recsys.candidates.generate import SOURCES
 from recsys.config import Config, cli_config
 from recsys.evaluate.baselines import popularity_recs, user_frequency_recs
-from recsys.evaluate.metrics import candidate_recall, evaluate_rankings, top_k_from_scores
+from recsys.evaluate.metrics import (
+    candidate_recall,
+    paired_bootstrap_ci,
+    per_user_metrics,
+    top_k_from_scores,
+)
 from recsys.ranker.dataset import load_split
 from recsys.ranker.train import score
 from recsys.utils import configure_logging, get_logger, timer
@@ -50,7 +55,27 @@ def evaluate(cfg: Config, split: str = "test") -> dict[str, Any]:
             "retrieval_only": top_k_from_scores(cands, "retrieval_score", max_k),
             "two_stage": top_k_from_scores(score(booster, data), "score", max_k),
         }
-        results = {name: evaluate_rankings(r, truth, ks) for name, r in recs.items()}
+        per_user = {name: per_user_metrics(r, truth, ks) for name, r in recs.items()}
+        results = {
+            name: {**{c: float(v) for c, v in pu.mean().items()}, "n_users": float(len(pu))}
+            for name, pu in per_user.items()
+        }
+        # Is the two-stage gain real? Paired bootstrap over test users.
+        significance = {
+            f"two_stage_minus_{base}_{metric}": dict(
+                zip(
+                    ("mean", "ci95_low", "ci95_high"),
+                    paired_bootstrap_ci(
+                        per_user["two_stage"][metric].to_numpy(),
+                        per_user[base][metric].to_numpy(),
+                        seed=cfg.seed,
+                    ),
+                    strict=True,
+                )
+            )
+            for base in ("user_frequency", "retrieval_only")
+            for metric in ("recall@10", "ndcg@10")
+        }
 
     cand_flags = data.keys.assign(**{s: data.X[s].to_numpy() for s in SOURCES})
     retrieval_stats = {
@@ -77,8 +102,14 @@ def evaluate(cfg: Config, split: str = "test") -> dict[str, Any]:
         "sample": cfg.sample,
         "model_version": meta["model_version"],
         "systems": results,
+        "significance": significance,
         "retrieval": retrieval_stats,
     }
+
+
+def _diff_label(key: str) -> str:
+    base, metric = key.removeprefix("two_stage_minus_").rsplit("_", 1)
+    return f"(d) minus {SYSTEMS[base][:3]} - {metric}"
 
 
 def to_markdown(m: dict[str, Any], ks: list[int]) -> str:
@@ -119,6 +150,16 @@ def to_markdown(m: dict[str, Any], ks: list[int]) -> str:
             ],
             f"| Share of truth items never bought before by the user "
             f"| {rt['share_truth_items_never_bought_before']:.4f} |",
+            "",
+            "## Is the gain real? (paired bootstrap over test users, 1,000 resamples)",
+            "",
+            "| Difference | Mean | 95% CI |",
+            "|---|---:|---:|",
+            *[
+                f"| {_diff_label(k)} | {v['mean']:+.4f} "
+                f"| [{v['ci95_low']:+.4f}, {v['ci95_high']:+.4f}] |"
+                for k, v in m["significance"].items()
+            ],
             "",
         ]
     )

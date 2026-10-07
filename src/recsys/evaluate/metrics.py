@@ -50,10 +50,8 @@ def average_precision_at_k(recs: Sequence[int], truth: set[int], k: int) -> floa
     return score / denom if denom else 0.0
 
 
-def evaluate_rankings(
-    recs: pd.DataFrame, truth: pd.DataFrame, ks: Sequence[int]
-) -> dict[str, float]:
-    """Mean metrics over all users present in ``truth``.
+def per_user_metrics(recs: pd.DataFrame, truth: pd.DataFrame, ks: Sequence[int]) -> pd.DataFrame:
+    """Per-user metrics (index = every user in ``truth``).
 
     recs:  user_id, product_id, rank (1-based, unique per user)
     truth: user_id, product_id
@@ -62,14 +60,14 @@ def evaluate_rankings(
     n_truth = truth.groupby("user_id").size().rename("n_truth")
     users = n_truth.index
     recs = recs.loc[recs["user_id"].isin(users), ["user_id", "product_id", "rank"]]
-    truth_keys = truth.assign(_rel=1)
-    scored = recs.merge(truth_keys, on=["user_id", "product_id"], how="left")
+    scored = recs.merge(truth.assign(_rel=1), on=["user_id", "product_id"], how="left")
     scored["_rel"] = scored["_rel"].fillna(0).astype("float64")
     scored = scored.sort_values(["user_id", "rank"])
 
     max_k = max(ks)
     idcg_table = np.concatenate([[0.0], np.cumsum(1.0 / np.log2(np.arange(2, max_k + 2)))])
-    out: dict[str, float] = {}
+    out = pd.DataFrame(index=users)
+    n = n_truth.to_numpy()
     for k in ks:
         top = scored[scored["rank"] <= k].copy()
         top["_cumhits"] = top.groupby("user_id")["_rel"].cumsum()
@@ -77,16 +75,36 @@ def evaluate_rankings(
         top["_prec_rel"] = top["_rel"] * top["_cumhits"] / top["rank"]
         agg = top.groupby("user_id")[["_rel", "_gain", "_prec_rel"]].sum()
         agg = agg.reindex(users, fill_value=0.0)
-        n = n_truth.reindex(users).to_numpy()
         hits = agg["_rel"].to_numpy()
         denom = np.minimum(n, k)
-        out[f"recall@{k}"] = float(np.mean(hits / n))
-        out[f"precision@{k}"] = float(np.mean(hits / k))
-        out[f"ndcg@{k}"] = float(np.mean(agg["_gain"].to_numpy() / idcg_table[denom]))
-        out[f"map@{k}"] = float(np.mean(agg["_prec_rel"].to_numpy() / denom))
-        out[f"hit_rate@{k}"] = float(np.mean(hits > 0))
-    out["n_users"] = float(len(users))
+        out[f"recall@{k}"] = hits / n
+        out[f"precision@{k}"] = hits / k
+        out[f"ndcg@{k}"] = agg["_gain"].to_numpy() / idcg_table[denom]
+        out[f"map@{k}"] = agg["_prec_rel"].to_numpy() / denom
+        out[f"hit_rate@{k}"] = (hits > 0).astype("float64")
     return out
+
+
+def evaluate_rankings(
+    recs: pd.DataFrame, truth: pd.DataFrame, ks: Sequence[int]
+) -> dict[str, float]:
+    """Mean of ``per_user_metrics`` over all users present in ``truth``."""
+    pu = per_user_metrics(recs, truth, ks)
+    out = {c: float(v) for c, v in pu.mean().items()}
+    out["n_users"] = float(len(pu))
+    return out
+
+
+def paired_bootstrap_ci(
+    a: np.ndarray, b: np.ndarray, n_boot: int = 1000, seed: int = 0
+) -> tuple[float, float, float]:
+    """Mean of (a - b) over users with a 95% paired-bootstrap confidence interval."""
+    diff = np.asarray(a) - np.asarray(b)
+    rng = np.random.default_rng(seed)
+    idx = rng.integers(0, len(diff), size=(n_boot, len(diff)))
+    means = diff[idx].mean(axis=1)
+    lo, hi = np.percentile(means, [2.5, 97.5])
+    return float(diff.mean()), float(lo), float(hi)
 
 
 def candidate_recall(candidates: pd.DataFrame, truth: pd.DataFrame) -> float:
