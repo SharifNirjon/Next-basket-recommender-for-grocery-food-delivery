@@ -3,7 +3,7 @@
 Outputs (in ``processed_dir``):
   products.parquet       product_id, product_name, aisle_id, department_id, aisle, department
   orders.parquet         all orders of the selected users (+ cumulative days per user)
-  prior.parquet          prior order lines joined with order metadata (features come ONLY from here)
+  prior.parquet          prior lines + user_id/order_number/cumdays (ONLY source of features)
   target_orders.parquet  the single "train" order per eval user (context only: dow/hour/days gap)
   targets.parquet        products of that order = ground truth (never used for features)
   splits.parquet         user_id -> train/valid/test (70/15/15, seeded, by user)
@@ -93,7 +93,7 @@ def prepare(cfg: Config) -> None:
     with timer(log, "read prior lines"):
         prior_lines = pd.read_csv(raw / "order_products__prior.csv", dtype=LINE_DTYPES)
     prior_orders = orders.loc[
-        orders["eval_set"] == "prior", ["order_id", "user_id", "order_number"]
+        orders["eval_set"] == "prior", ["order_id", "user_id", "order_number", "cumdays"]
     ]
     prior = prior_lines.merge(prior_orders, on="order_id", how="inner")
     del prior_lines
