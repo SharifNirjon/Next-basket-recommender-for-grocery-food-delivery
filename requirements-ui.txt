@@ -1,0 +1,4 @@
+# Optional demo UI (not needed by the pipeline or the API).
+streamlit==1.39.0
+httpx==0.27.2
+pandas==2.2.3

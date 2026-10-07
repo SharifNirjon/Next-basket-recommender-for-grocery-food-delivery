@@ -5,7 +5,7 @@ FLAG    := $(if $(SAMPLE),--sample,)
 ARTS    := $(if $(SAMPLE),artifacts/sample,artifacts)
 PORT    ?= 8000
 
-.PHONY: setup data features train evaluate artifacts serve test lint format bench docker all clean
+.PHONY: setup data features train evaluate artifacts serve test lint format bench docker all clean ui
 
 setup:
 	python3.11 -m venv .venv
@@ -38,8 +38,8 @@ test:
 	$(PY) -m pytest
 
 lint:
-	$(PY) -m ruff check src tests scripts
-	$(PY) -m black --check src tests scripts
+	$(PY) -m ruff check src tests scripts ui
+	$(PY) -m black --check src tests scripts ui
 
 format:
 	$(PY) -m ruff check --fix src tests scripts
@@ -57,3 +57,7 @@ all: data features train evaluate artifacts
 
 clean:
 	rm -rf data/processed/* artifacts/* mlruns reports/sample
+
+# Optional demo UI (pip install -r requirements-ui.txt); needs a running API.
+ui:
+	$(PY) -m streamlit run ui/streamlit_app.py

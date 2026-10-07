@@ -19,8 +19,8 @@ jobs:
           pip install --no-deps -e .
       - name: Lint
         run: |
-          ruff check src tests scripts
-          black --check src tests scripts
+          ruff check src tests scripts ui
+          black --check src tests scripts ui
       - name: Tests (synthetic fixture data, no Kaggle download)
         run: pytest -rA
 
